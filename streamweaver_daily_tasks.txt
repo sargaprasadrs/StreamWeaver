@@ -1,0 +1,557 @@
+================================================================================
+STREAMWEAVER: COMPLETE DAILY TASK BREAKDOWN
+September 21 - October 17, 2026 | 2-Person Team
+================================================================================
+
+TEAM MEMBERS:
+- Sarga (Lead / Frontend + Coordination) - GitHub & DevOps, docs, merges,
+  React UI, virtualized grid, mapping UI, progress & error UI, memory audit report
+- Chandra (Backend Lead) - busboy upload streams, Transform stream classes,
+  isolated-vm sandbox, WebSocket broker, MongoDB bulk ingestion, memory profiling
+
+BRANCHES:
+- main    (Sarga — integration branch, always shippable)
+- chandra (Chandra — all backend feature work)
+- Sundays: merge chandra -> main via PR, both review
+
+DAILY STANDUP: 5 PM IST (~10 min) - done / next / blockers; Sarga logs action items.
+
+================================================================================
+WEEK 1: September 21-27 (Multipart Streaming & Virtual Grid)
+================================================================================
+
+---
+MONDAY, SEPTEMBER 21 - PROJECT KICKOFF & SCAFFOLDING
+---
+
+CHANDRA:
+  - Initialize backend/ (Node.js 20 + Express), folder structure per plan §8
+  - package.json, .env.example, nodemon, health endpoint
+  - Commits:
+    * "init: Express backend scaffold"
+
+SARGA:
+  - Commit planning docs (implementationplan.md, daily tasks) to main
+  - Add Chandra as repo collaborator; confirm branch chandra exists
+  - Initialize frontend/ (Vite + React), install react-window
+  - Commits:
+    * "docs: implementation plan + daily task breakdown"
+    * "init: React app scaffold + react-window"
+
+DAILY STANDUP (5 PM IST):
+  - Confirm Node 20 LTS on both machines; Atlas vs local decision
+
+---
+TUESDAY, SEPTEMBER 22 - STREAMING UPLOAD (THE CORE WEEK 1 FEATURE)
+---
+
+CHANDRA:
+  - POST /api/uploads with busboy: stream file to temp file on disk
+  - Log bytes-received as chunks flow (never buffer the file in memory)
+  - Commits:
+    * "feat: busboy multipart streaming upload"
+    * "feat: stream upload to temp file"
+
+SARGA:
+  - UploadDropzone component: drag & drop + file picker
+  - XHR/fetch with upload progress percentage
+  - Commits:
+    * "feat: upload dropzone component"
+    * "feat: upload progress bar"
+
+DAILY STANDUP (5 PM IST):
+  - Test a 100MB upload end to end; watch backend RSS stays flat
+
+---
+WEDNESDAY, SEPTEMBER 23 - UPLOAD ROBUSTNESS
+---
+
+CHANDRA:
+  - Size limits, client abort cleanup (delete temp file), error responses
+  - Create 'uploads' job record (status: uploading -> ready)
+  - Commits:
+    * "fix: upload abort cleanup + size limits"
+    * "feat: uploads job collection"
+
+SARGA:
+  - Wire dropzone to API; error states (too large, network fail, wrong type)
+  - Uploads list/status UI shell
+  - Commits:
+    * "feat: upload error states"
+    * "style: uploads list UI"
+
+DAILY STANDUP (5 PM IST):
+  - Review failure paths: kill upload mid-flight, verify temp cleanup
+
+---
+THURSDAY, SEPTEMBER 24 - CSV PREVIEW API & GRID SHELL
+---
+
+CHANDRA:
+  - GET /api/uploads/:id/sample: streamed read of header + first 1,000 rows
+  - Return JSON { columns, rows } - still streaming, no full-file reads
+  - Commits:
+    * "feat: CSV sample endpoint (first 1,000 rows)"
+
+SARGA:
+  - VirtualCsvGrid shell with react-window (fixed row height, column headers)
+  - Commits:
+    * "feat: VirtualCsvGrid shell"
+
+DAILY STANDUP (5 PM IST):
+  - Agree on sample JSON shape (contract between backend and grid)
+
+---
+FRIDAY, SEPTEMBER 25 - GRID COMPLETE
+---
+
+CHANDRA:
+  - Sample endpoint edge cases: empty file, <1000 rows, malformed CSV, BOM
+  - Tests for the sample route
+  - Commits:
+    * "test: sample endpoint edge cases"
+
+SARGA:
+  - Bind grid to sample data; frozen header row; row striping; column sizing
+  - Commits:
+    * "feat: grid data binding + frozen header"
+    * "style: grid polish"
+
+DAILY STANDUP (5 PM IST):
+  - Grid previews a real 100MB CSV's first 1,000 rows
+
+---
+SATURDAY, SEPTEMBER 26 - INTEGRATION DAY
+---
+
+BOTH:
+  - Full E2E: upload 100MB CSV -> status ready -> preview grid renders
+  - Fix bugs found in integration
+  - Commits:
+    * "fix: week 1 integration bugs" (each, as applicable)
+
+DAILY STANDUP (5 PM IST):
+  - Demo walkthrough; list remaining polish items
+
+---
+SUNDAY, SEPTEMBER 27 - WEEK 1 REVIEW & MERGE
+---
+
+CHANDRA:
+  - Backend docs: upload API + sample endpoint
+  - Refactor pass on routes/controllers
+  - Commits:
+    * "docs: upload API documentation"
+    * "refactor: week 1 cleanup"
+
+SARGA:
+  - README update (setup + week 1 status)
+  - Merge chandra -> main via PR (both review)
+  - Commits:
+    * "docs: README week 1"
+    * "merge: week 1 backend"
+
+WEEK 1 GOALS ACHIEVED:
+✓ Massive CSV uploads accepted via streams (busboy), never fully in memory
+✓ Virtualized grid (react-window) previews first 1,000 rows
+✓ Upload job tracking + robust error handling
+
+================================================================================
+WEEK 2: September 28 - October 4 (ETL Transform Streams & Mapping UI)
+================================================================================
+
+---
+MONDAY, SEPTEMBER 28 - CSV PARSE TRANSFORM
+---
+
+CHANDRA:
+  - streams/CsvParseTransform.js (objectMode): chunk -> row objects
+  - Handle quoted fields, escaped quotes, CRLF, BOM
+  - Test corpus for parser edge cases
+  - Commits:
+    * "feat: CsvParseTransform"
+    * "test: CSV parser edge cases"
+
+SARGA:
+  - MappingBoard skeleton: two panels (source columns | destination fields)
+  - Mapping state model (sourceCol -> destField, type, required)
+  - Commits:
+    * "feat: MappingBoard skeleton"
+    * "feat: mapping state model"
+
+DAILY STANDUP (5 PM IST):
+  - Walk through parser test results together
+
+---
+TUESDAY, SEPTEMBER 29 - MAPPING TRANSFORM
+---
+
+CHANDRA:
+  - streams/MappingTransform.js: config-driven rename + type coercion
+    (string/number/boolean/date), per-row errors surfaced
+  - Tests with different mapping configs
+  - Commits:
+    * "feat: MappingTransform"
+    * "test: mapping + coercion tests"
+
+SARGA:
+  - Source column list UI fed from sample endpoint
+  - Drag/select to assign source -> destination
+  - Commits:
+    * "feat: source column panel"
+    * "feat: column assignment UI"
+
+DAILY STANDUP (5 PM IST):
+  - Verify mapping JSON produced by UI matches what backend expects
+
+---
+WEDNESDAY, SEPTEMBER 30 - PIPELINE ASSEMBLY
+---
+
+CHANDRA:
+  - pipeline() assembly: fs.ReadStream -> CsvParse -> Mapping -> counting sink
+  - Metrics: rows processed, elapsed, rows/sec (basis for WS later)
+  - Commits:
+    * "feat: streaming ETL pipeline assembly"
+    * "feat: pipeline metrics counters"
+
+SARGA:
+  - Destination field editor: name, type dropdown, required toggle
+  - Commits:
+    * "feat: destination field editor"
+
+DAILY STANDUP (5 PM IST):
+  - Run full file -> rows flow on a 500MB file; check RAM stays low
+
+---
+THURSDAY, OCTOBER 1 - API-DRIVEN RUNS
+---
+
+CHANDRA:
+  - PUT /api/uploads/:id/mapping (persist mapping config)
+  - POST /api/uploads/:id/run (execute pipeline for that upload)
+  - Commits:
+    * "feat: mapping persistence endpoint"
+    * "feat: run pipeline endpoint"
+
+SARGA:
+  - Mapping preview: before/after rows side by side (first 10)
+  - Commits:
+    * "feat: mapping preview"
+
+DAILY STANDUP (5 PM IST):
+  - UI -> API -> pipeline round trip works
+
+---
+FRIDAY, OCTOBER 2 - MAPPING VALIDATION & POLISH
+---
+
+CHANDRA:
+  - Mapping validation: duplicate targets, unknown source cols, missing required
+  - Tests for validation rules
+  - Commits:
+    * "feat: mapping validation"
+    * "test: mapping validation tests"
+
+SARGA:
+  - Mapping UX polish; unsaved-changes guard; save confirmation
+  - Commits:
+    * "style: mapping board polish"
+
+DAILY STANDUP (5 PM IST):
+  - Week 2 feature freeze check
+
+---
+SATURDAY, OCTOBER 3 - MID-REVIEW AUDITS (CRITICAL DAY)
+---
+
+CHANDRA:
+  - Memory audit: script to generate 2GB CSV; RSS sampler (250ms interval,
+    process.memoryUsage()); run full pipeline; record peak RSS
+  - Output: profiler output/screenshots proving RAM <= 150MB
+  - Commits:
+    * "test: 2GB memory audit harness"
+    * "perf: memory audit results (peak RSS recorded)"
+
+SARGA:
+  - UI performance audit: React Profiler pass on grid scroll; DOM node count
+    while scrolling 1,000 rows; capture DevTools trace
+  - Commits:
+    * "perf: grid scroll profiling"
+    * "docs: UI performance audit notes"
+
+DAILY STANDUP (5 PM IST):
+  - Review audit numbers; fix anything that misses the 150MB bar
+
+---
+SUNDAY, OCTOBER 4 - MID-PROJECT REVIEW
+---
+
+BOTH:
+  - Demo: upload 2GB -> memory proof -> virtual grid smooth scroll
+  - Merge week 2 to main; mid-review docs
+  - Commits:
+    * "docs: mid-review report" (both)
+    * "merge: week 2" (Sarga)
+
+MID-REVIEW CHECKLIST (from PROJECT.pdf):
+✓ 2GB upload; profiling proves server RAM never exceeds 150MB
+✓ Virtualized grid scrolls smoothly without DOM lag
+✓ Team at >= 10 commit days; main demo-able
+
+================================================================================
+WEEK 3: October 5-11 (Sandboxed Execution & Live Progress)
+================================================================================
+
+---
+MONDAY, OCTOBER 5 - ISOLATED-VM SPIKE (RISKIEST DEPENDENCY - DO IT FIRST)
+---
+
+CHANDRA:
+  - Install isolated-vm; verify native build works on both machines
+  - Spike: compile + run "return value.toUpperCase()" with timeout + memory limit
+  - Commits:
+    * "feat: isolated-vm spike"
+
+SARGA:
+  - TransformEditor skeleton: textarea + language hints + apply button
+  - Commits:
+    * "feat: TransformEditor skeleton"
+
+DAILY STANDUP (5 PM IST):
+  - GO/NO-GO on isolated-vm; if build blocked, escalate to trainer same day
+
+---
+TUESDAY, OCTOBER 6 - SANDBOX TRANSFORM
+---
+
+CHANDRA:
+  - streams/SandboxTransform.js: one isolate per job, snippet compiled once,
+    applied per row; errors -> row marked failed, stream continues
+  - Tests: uppercase, arithmetic, conditional transforms
+  - Commits:
+    * "feat: SandboxTransform"
+    * "test: sandbox transform tests"
+
+SARGA:
+  - Editor validation (syntax check feedback), save snippet to job
+  - Commits:
+    * "feat: editor validation + save"
+
+DAILY STANDUP (5 PM IST):
+  - First user transform running inside the stream
+
+---
+WEDNESDAY, OCTOBER 7 - SANDBOX HARDENING
+---
+
+CHANDRA:
+  - Per-row execution timeout; isolate memory cap; dispose on job end
+  - Malicious-snippet test suite (while(true), huge allocations)
+  - Commits:
+    * "fix: sandbox timeout + memory caps"
+    * "test: malicious snippet tests"
+
+SARGA:
+  - Run/Stop controls in UI; transform status indicator
+  - Commits:
+    * "feat: run/stop controls"
+
+DAILY STANDUP (5 PM IST):
+  - Try to break the sandbox together; document results
+
+---
+THURSDAY, OCTOBER 8 - WEBSOCKET PROGRESS BROKER
+---
+
+CHANDRA:
+  - websocket/progressBroker.js: jobId rooms; emit rows processed, rows/sec
+    (rolling window), % complete, failed count - throttled to 500ms
+  - Commits:
+    * "feat: websocket progress broker"
+
+SARGA:
+  - WS client lib with reconnect + job room subscription
+  - Commits:
+    * "feat: ws client with reconnect"
+
+DAILY STANDUP (5 PM IST):
+  - Verify message shape and throttle behavior
+
+---
+FRIDAY, OCTOBER 9 - LIVE PROGRESS UI
+---
+
+CHANDRA:
+  - Wire run endpoint to broker; E2E test run -> WS events
+  - Commits:
+    * "test: progress E2E"
+
+SARGA:
+  - ProgressBar + rows/sec stat + status chip (uploading/ready/processing/completed/failed)
+  - Commits:
+    * "feat: live progress bar + rows/sec"
+    * "style: status indicators"
+
+DAILY STANDUP (5 PM IST):
+  - Live progress visible while a 1GB file processes
+
+---
+SATURDAY, OCTOBER 10 - INTEGRATION DAY
+---
+
+BOTH:
+  - 1GB file with sandbox transform + live progress end to end
+  - Fix bugs; check memory during sandboxed runs
+  - Commits:
+    * "fix: week 3 integration bugs" (each)
+
+---
+SUNDAY, OCTOBER 11 - WEEK 3 REVIEW & MERGE
+---
+
+CHANDRA:
+  - Backend docs: pipeline + sandbox + WS protocol
+  - Commits:
+    * "docs: pipeline & sandbox documentation"
+
+SARGA:
+  - Demo script for week 3; merge to main via PR
+  - Commits:
+    * "docs: week 3 demo script"
+    * "merge: week 3"
+
+WEEK 3 GOALS ACHIEVED:
+✓ User JavaScript runs safely inside the stream (isolated-vm)
+✓ WebSocket streams live progress + rows processed/sec to the client
+✓ Sandbox survives malicious snippets (timeouts, memory caps)
+
+================================================================================
+WEEK 4: October 12-17 (Database Bulk Ingestion & Error-Handling UI)
+================================================================================
+
+---
+MONDAY, OCTOBER 12 - BATCH BUFFER (5,000-RECORD FLUSHES)
+---
+
+CHANDRA:
+  - streams/BatchBuffer.js: accumulate docs, flush insertMany/bulkWrite every
+    5,000 records AND on stream end; ordered: false
+  - Tests: flush timing, partial final batch, error path
+  - Commits:
+    * "feat: BatchBuffer (5,000-record bulkWrite)"
+    * "test: batch buffer tests"
+
+SARGA:
+  - FailedRowsPanel skeleton (table: row #, reason, raw line)
+  - Commits:
+    * "feat: FailedRowsPanel skeleton"
+
+DAILY STANDUP (5 PM IST):
+  - Confirm batch sizes in Mongo (Compass count between flushes)
+
+---
+TUESDAY, OCTOBER 13 - INGEST SERVICE
+---
+
+CHANDRA:
+  - services/ingestService.js: indexes ({uploadId, row}), inserted-count metric,
+    retry on transient Mongo errors
+  - Commits:
+    * "feat: ingest service with retry"
+
+SARGA:
+  - Failed-rows API client; panel fetches on job completion
+  - Commits:
+    * "feat: failed rows data fetching"
+
+DAILY STANDUP (5 PM IST):
+  - 1M+ records ingested in batches without RAM spikes
+
+---
+WEDNESDAY, OCTOBER 14 - VALIDATION & ERROR CAPTURE
+---
+
+CHANDRA:
+  - streams/ValidationTransform.js: required/type checks -> failed_rows collection
+  - Tests for each validation rule
+  - Commits:
+    * "feat: ValidationTransform"
+    * "test: validation tests"
+
+SARGA:
+  - Failed-rows table: filter by reason, search, expand raw line
+  - Commits:
+    * "feat: failed rows filter/search"
+
+DAILY STANDUP (5 PM IST):
+  - Deliberately upload a bad CSV; every bad row shows in the UI
+
+---
+THURSDAY, OCTOBER 15 - ERRORS API & JOB SUMMARY
+---
+
+CHANDRA:
+  - GET /api/jobs/:id/errors with pagination
+  - Commits:
+    * "feat: errors pagination endpoint"
+
+SARGA:
+  - Job summary view: rows ok / failed, duration, avg rows/sec, peak RSS
+  - Commits:
+    * "feat: job summary view"
+
+DAILY STANDUP (5 PM IST):
+  - Full journey review: upload -> map -> transform -> ingest -> error report
+
+---
+FRIDAY, OCTOBER 16 - FULL E2E & RE-AUDIT
+---
+
+BOTH:
+  - End-to-end bug fixes on the complete flow
+  - Re-run the 2GB memory audit; re-capture UI perf traces; final tuning
+  - Commits:
+    * "fix: e2e fixes" / "perf: final tuning" (each)
+
+---
+SATURDAY, OCTOBER 17 - FREEZE & FINAL MERGE
+---
+
+BOTH:
+  - Full verification pass against every PROJECT.pdf requirement
+  - README final (setup, architecture, audit numbers); commit audit
+  - Commits:
+    * "docs: final README + audit results" (both)
+    * "merge: final" (Sarga)
+
+---
+MONDAY, OCTOBER 19 - FINAL PROJECT REVIEW
+---
+
+BOTH:
+  - Demo: 2GB CSV -> streaming upload -> visual mapping -> sandboxed transform
+    -> live progress (rows/sec) -> 5,000-record bulkWrite ingestion -> failed-rows
+    report. RAM proof on screen.
+
+WEEK 4 GOALS ACHIEVED:
+✓ MongoDB bulk ingestion every 5,000 records
+✓ Error-handling UI highlighting failed validation rows
+✓ Enterprise-grade, memory-safe ETL architecture delivered
+
+================================================================================
+COMMIT DISCIPLINE (2-PERSON ADAPTATION)
+================================================================================
+
+- Every member commits at least once per working day - with 2 people, one
+  silent day is 50% of the team dark.
+- Meaningful messages only: feat / fix / test / docs / refactor / perf / style /
+  merge / init. No "update", ".", "asdf".
+- Never commit directly to main (Sarga docs commits excepted by agreement).
+- Verify with:
+    git log --since="2026-09-21" --pretty="%h %an %s"
+- Target: 20+ consecutive commit days (Sept 21 -> Oct 17), 50+ meaningful commits.
+
+================================================================================
+END OF DAILY TASK BREAKDOWN
+================================================================================
