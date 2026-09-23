@@ -119,4 +119,62 @@ describe('uploads API', () => {
       expect(res.status).to.equal(404);
     });
   });
+
+  describe('mapping + run endpoints', () => {
+    let uploadId;
+
+    before(async () => {
+      const res = await request(app)
+        .post('/api/uploads')
+        .attach('file', Buffer.from('name,age\nann,30\nbo,abc\n'), 'people.csv');
+      uploadId = res.body.uploadId;
+    });
+
+    it('saves a valid mapping', async () => {
+      const res = await request(app)
+        .put(`/api/uploads/${uploadId}/mapping`)
+        .send({ mapping: { name: { destField: 'person', type: 'string' } } });
+      expect(res.status).to.equal(200);
+      expect(res.body.status).to.equal('saved');
+    });
+
+    it('rejects an invalid mapping with 422 and details', async () => {
+      const res = await request(app)
+        .put(`/api/uploads/${uploadId}/mapping`)
+        .send({ mapping: { name: { destField: 'dup' }, age: { destField: 'dup' } } });
+      expect(res.status).to.equal(422);
+      expect(res.body.details[0].message).to.match(/Duplicate destination field/);
+    });
+
+    it('returns 409 when running without a saved mapping', async () => {
+      const up = await request(app)
+        .post('/api/uploads')
+        .attach('file', Buffer.from('a\n1\n'), 'nomap.csv');
+      const res = await request(app).post(`/api/uploads/${up.body.uploadId}/run`);
+      expect(res.status).to.equal(409);
+    });
+
+    it('runs the pipeline and reports metrics', async () => {
+      await request(app)
+        .put(`/api/uploads/${uploadId}/mapping`)
+        .send({
+          mapping: {
+            name: { destField: 'person', type: 'string', required: true },
+            age: { destField: 'years', type: 'number', required: true },
+          },
+        });
+      const res = await request(app).post(`/api/uploads/${uploadId}/run`).send({});
+      expect(res.status).to.equal(200);
+      expect(res.body.status).to.equal('completed');
+      expect(res.body.rowsProcessed).to.equal(1);
+      expect(res.body.rowsFailed).to.equal(1);
+      expect(res.body).to.have.property('elapsedMs');
+      expect(res.body).to.have.property('peakRssMB');
+    });
+
+    it('returns 404 when running a missing upload', async () => {
+      const res = await request(app).post('/api/uploads/does-not-exist/run');
+      expect(res.status).to.equal(404);
+    });
+  });
 });

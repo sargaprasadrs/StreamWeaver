@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import UploadDropzone from './components/upload/UploadDropzone.jsx';
 import VirtualCsvGrid from './components/grid/VirtualCsvGrid.jsx';
+import MappingBoard from './components/mapping/MappingBoard.jsx';
 import { fetchSample } from './lib/api.js';
 
 export default function App() {
@@ -35,21 +36,36 @@ export default function App() {
 
       <UploadDropzone onUploaded={(res) => loadSample(res.uploadId)} />
 
-      <section className="panel">
-        <h2>Preview</h2>
-        {loading && <p>Loading preview…</p>}
-        {sampleError && (
+      {loading && (
+        <section className="panel">
+          <p>Loading preview…</p>
+        </section>
+      )}
+      {sampleError && (
+        <section className="panel">
           <p className="alert alert--error" role="alert">
             {sampleError}
           </p>
-        )}
-        {sample && (
-          <VirtualCsvGrid columns={sample.columns} rows={sample.rows} truncated={sample.truncated} />
-        )}
-        {!sample && !loading && !sampleError && (
-          <p className="grid-empty">Upload a CSV to preview its first 1,000 rows.</p>
-        )}
-      </section>
+        </section>
+      )}
+      {sample && (
+        <>
+          <section className="panel">
+            <h2>Preview</h2>
+            <VirtualCsvGrid columns={sample.columns} rows={sample.rows} truncated={sample.truncated} />
+          </section>
+          <MappingBoard
+            uploadId={sample.uploadId}
+            columns={sample.columns}
+            rows={sample.rows}
+          />
+        </>
+      )}
+      {!sample && !loading && !sampleError && (
+        <section className="panel">
+          <p className="grid-empty">Upload a CSV to preview its first 1,000 rows and map its columns.</p>
+        </section>
+      )}
     </div>
   );
 }

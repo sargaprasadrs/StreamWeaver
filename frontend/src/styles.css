@@ -200,3 +200,134 @@ body {
   color: var(--muted);
   font-size: 12px;
 }
+
+.mapping-hint {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: -6px;
+}
+
+.mapping-grid {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.mapping-grid__head,
+.mapping-grid__row {
+  display: grid;
+  grid-template-columns: 1.2fr 1.4fr 0.8fr 0.7fr;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+}
+
+.mapping-grid__head {
+  background: #f1f3fa;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.mapping-grid__row {
+  border-top: 1px solid var(--border);
+}
+
+.mapping-grid__row input[type='text'],
+.mapping-grid__row select {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.mapping-src {
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mapping-required {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.mapping-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.mapping-dirty {
+  color: #b45309;
+  font-size: 13px;
+  margin: 10px 0 0;
+}
+
+.mapping-preview {
+  margin-top: 20px;
+}
+
+.mapping-preview h3 {
+  font-size: 15px;
+  margin: 0 0 10px;
+}
+
+.mapping-preview__cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.mapping-preview__pane {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: auto;
+  max-height: 320px;
+}
+
+.mapping-preview__pane h4 {
+  margin: 0;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  background: #f1f3fa;
+  font-size: 13px;
+  position: sticky;
+  top: 0;
+}
+
+.mapping-preview__pane table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 12px;
+}
+
+.mapping-preview__pane th,
+.mapping-preview__pane td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.mapping-preview__pane th {
+  background: #fafbff;
+  position: sticky;
+  top: 33px;
+}
+
+.preview-row--error td {
+  background: var(--error-bg);
+}
+
+.preview-error-text {
+  color: var(--error-text);
+}
+
+.muted {
+  color: var(--muted);
+}

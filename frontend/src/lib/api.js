@@ -7,6 +7,60 @@ export async function fetchSample(uploadId, signal) {
   const res = await fetch(`${API_BASE}/uploads/${encodeURIComponent(uploadId)}/sample`, { signal });
   if (!res.ok) {
     let msg = `Sample request failed (${res.status})`;
+    let details;
+    try {
+      const body = await res.json();
+      if (body && body.error) msg = body.error;
+      details = body && body.details;
+    } catch {
+      // keep default message
+    }
+    const err = new Error(msg);
+    err.status = res.status;
+    err.details = details;
+    throw err;
+  }
+  return res.json();
+}
+
+/**
+ * Persist the column mapping for an upload.
+ */
+export async function saveMapping(uploadId, mapping) {
+  const res = await fetch(`${API_BASE}/uploads/${encodeURIComponent(uploadId)}/mapping`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ mapping }),
+  });
+  if (!res.ok) {
+    let msg = `Mapping save failed (${res.status})`;
+    let details;
+    try {
+      const body = await res.json();
+      if (body && body.error) msg = body.error;
+      details = body && body.details;
+    } catch {
+      // keep default message
+    }
+    const err = new Error(msg);
+    err.status = res.status;
+    err.details = details;
+    throw err;
+  }
+  return res.json();
+}
+
+/**
+ * Execute the streaming ETL pipeline for an upload.
+ */
+export async function runPipeline(uploadId) {
+  const res = await fetch(`${API_BASE}/uploads/${encodeURIComponent(uploadId)}/run`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+  });
+  if (!res.ok) {
+    let msg = `Pipeline run failed (${res.status})`;
     try {
       const body = await res.json();
       if (body && body.error) msg = body.error;
@@ -22,14 +76,14 @@ export async function fetchSample(uploadId, signal) {
 
 /**
  * Upload a file via XHR so we get upload progress events.
- * onProgress receives a 0-100 percentage.
+ * onProgress receives a 0-100 percentage. The returned promise has an
+ * .abort() method to cancel the in-flight request.
  */
 export function uploadCsv(file, onProgress) {
   let xhrRef = null;
   const promise = new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.open('POST', `${API_BASE}/uploads`);
-    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
 
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable && onProgress) {
