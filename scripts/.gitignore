@@ -1,0 +1,4 @@
+# Local-only artifacts of the daily-commit scheduler (never commit these)
+scheduled_task_*.xml
+scheduler_setup.log
+standup_log.md.bak
