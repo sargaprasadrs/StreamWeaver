@@ -5,14 +5,17 @@ One-time setup for the StreamWeaver daily commit bot
 
 Registers two Windows scheduled tasks that run scripts\\daily_commit.py:
 
-  1. "StreamWeaver Daily Commit (Logon)"  - at logon (Event 7001), so the
-     day's commit happens shortly after you switch on your PC.
-  2. "StreamWeaver Daily Commit (Hourly)" - hourly, for days when the PC
-     stays on or you log in later; the bot itself is a no-op if a commit
-     already exists for today.
+  1. "StreamWeaver Maintenance Commit (Logon)" - at logon (Event 7001), so
+     the day's first commit happens shortly after you switch on your PC.
+  2. "StreamWeaver Maintenance Commit (15min)" - every 15 minutes, so the
+     bot lands commits inside its spaced ~8-hour windows without you ever
+     needing to restart; the bot itself is a no-op outside those windows,
+     beyond the daily cap (3/day), or within 30 minutes of the last
+     commit on HEAD.
 
-The bot is idempotent (max 1 commit/day, only touches its own standup log),
-so frequent runs are safe.
+The bot is idempotent (up to 3 small maintenance commits/day, touches only
+its own files), so frequent runs are safe. Re-running this setup script
+also removes the legacy "... (Hourly)" task from older versions.
 
 Run as:   python scripts\\setup_daily_task.py
 Re-runnable: it deletes and re-creates its own tasks; nothing else is touched.
@@ -26,7 +29,8 @@ from pathlib import Path
 
 SCRIPTS_DIR = Path(__file__).resolve().parent
 BOT = SCRIPTS_DIR / "daily_commit.py"
-TASK_PREFIX = "StreamWeaver Daily Commit"
+TASK_PREFIX = "StreamWeaver Maintenance Commit"
+LEGACY_TASKS = ["StreamWeaver Daily Commit (Logon)", "StreamWeaver Daily Commit (Hourly)"]
 LOG_FILE = SCRIPTS_DIR / "scheduler_setup.log"
 
 # Python launcher: prefer the real python.exe (Windows Store shim in
@@ -63,10 +67,10 @@ def task_xml(name: str, trigger: str) -> str:
             "<UserId>S-1-5-18</UserId>"  # placeholder; replaced below by user SID
             "</LogonTrigger>"
         )
-    else:  # hourly
+    else:  # every 15 minutes
         trigger_block = (
             "<TimeTrigger>"
-            "<Repetition><Interval>PT1H</Interval><StopAtDurationEnd>false</StopAtDurationEnd></Repetition>"
+            "<Repetition><Interval>PT15M</Interval><StopAtDurationEnd>false</StopAtDurationEnd></Repetition>"
             "<StartBoundary>2026-01-01T09:00:00</StartBoundary>"
             "<Enabled>true</Enabled>"
             "</TimeTrigger>"
@@ -75,7 +79,7 @@ def task_xml(name: str, trigger: str) -> str:
     return f"""<?xml version="1.0" encoding="UTF-16"?>
 <Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
   <RegistrationInfo>
-    <Description>StreamWeaver daily standup-log commit (max 1/day, pushes to origin/main).</Description>
+    <Description>StreamWeaver automated maintenance commit (up to 3/day in spaced windows, pushes to origin/main).</Description>
     <Author>{author}</Author>
   </RegistrationInfo>
   <Triggers>{trigger_block}</Triggers>
@@ -150,17 +154,22 @@ def main() -> None:
     user_sid = sid_proc.stdout.strip() or "S-1-5-21-0-0-0-1001"
     print(f"[setup] user SID: {user_sid}")
 
+    for legacy in LEGACY_TASKS:
+        print(f"[setup] removing legacy task (if present): {legacy}")
+        subprocess.run(["schtasks", "/Delete", "/TN", legacy, "/F"],
+                       capture_output=True, text=True)
+
     install(f"{TASK_PREFIX} (Logon)", "logon", user_sid)
-    install(f"{TASK_PREFIX} (Hourly)", "hourly", user_sid)
+    install(f"{TASK_PREFIX} (15min)", "15min", user_sid)
 
     print("\n[setup] verifying tasks:")
     run(["schtasks", "/Query", "/FO", "LIST", "/TN", f"{TASK_PREFIX} (Logon)"])
-    run(["schtasks", "/Query", "/FO", "LIST", "/TN", f"{TASK_PREFIX} (Hourly)"])
+    run(["schtasks", "/Query", "/FO", "LIST", "/TN", f"{TASK_PREFIX} (15min)"])
 
     LOG_FILE.write_text("setup completed", encoding="utf-8")
-    print("[setup] done. Run manually any time with:")
-    print("   python scripts/daily_commit.py")
-    print("(use --dry-run to preview without committing)")
+    print("[setup] done. The bot now runs every 15 minutes + at logon - no")
+    print("restarts needed. Preview a run any time with:")
+    print("   python scripts/daily_commit.py --dry-run")
 
 
 if __name__ == "__main__":
