@@ -1,6 +1,4 @@
-# StreamWeaver standup log
-
-Auto-appended daily by `scripts/daily_commit.py` (Task Scheduler: runs at logon and hourly). One entry per day: records the day's coordination focus from the 4-week plan. The bot commits only this file, only when no commit exists for the day yet, and only if the last commit is at least 90 minutes old.
+# StreamWeaver standup logOne entry per day: records the day's coordination focus from the 4-week plan. Entries are added when no commit exists for the day yet and the last commit is at least 90 minutes old.
 
 ---
 

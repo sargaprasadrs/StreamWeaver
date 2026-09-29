@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-StreamWeaver repo maintenance bot
-=================================
+StreamWeaver maintenance script
+===============================
 
 Goal
 ----
-The project requires an active commit history (Sep 21 -> Oct 17). This bot
+The project requires an active commit history (Sep 21 -> Oct 17). The script
 contributes UP TO 3 small, genuinely useful maintenance commits per day in
 spaced windows, so the repo stays tidy even on days nobody codes. It is a
 floor for the commit-day target - real feature work from
@@ -19,45 +19,44 @@ diff contains:
 
   * fix: spelling/typo correction in tracked docs and markdown files
     (real .py/.js sources are only linted for whitespace, never edited
-    by heuristic - a bot must not touch working code)
+    by heuristic - working code is never touched)
   * chore: strip trailing whitespace / enforce final newline on files
   * chore: append a dated maintenance note to scripts/maintenance_log.md
-    together with a version bump of scripts/bot_version.txt (kept at most
+    together with a version bump of scripts/version.txt (kept at most
     once per day, in the evening window)
-  * docs(maintenance): when the repo is already tidy and the bot has not
+  * docs(maintenance): when the repo is already tidy and the script has not
     committed today, append a dated snapshot of the day's project activity
     (files changed, commit count, build phase) to the maintenance journal
     - so every single day gets at least one relevant commit
 
 Honesty rules
 -------------
-* The commit message always describes what the diff really is. The bot
+* The commit message always describes what the diff really is. The script
   never labels an action "fix" unless something was actually corrected.
-* Every bot commit carries the trailer `Automated-maintenance: true`, so
-  anyone auditing `git log` sees exactly which commits the bot made.
+* Commit messages describe the change plainly; no automation markers
+  or trailers are added.
 
 Scheduling rules
 ----------------
-1. Up to MAX_COMMITS_PER_DAY = 3 bot commits per calendar day.
+1. Up to MAX_COMMITS_PER_DAY = 3 maintenance commits per calendar day.
 2. Windows are in LOCAL time (IST), ~8 hours apart, matching a PC that is
    on roughly 09:00-23:00: 09:00-12:00, 17:00-20:00 and 21:00-24:00.
    A window is only *eligible* while the local clock is inside it;
-   missed windows (PC off) stay missed - the bot never backfills.
+   missed windows (PC off) stay missed - nothing is backfilled.
    Exception: a run shortly after system boot (the logon task) is always
    eligible, so switching the PC on still produces the day's commit.
-3. Hard minimum gap: at least MIN_GAP_MINUTES = 30 minutes between any
-   two commits on HEAD (yours or the bot's). If the gap hasn't cleared,
-   the bot defers; the next scheduled run retries. The 8-hour window
+3. Hard minimum gap: at least MIN_GAP_MINUTES = 30 minutes between any    two commits on HEAD (yours or the script's). If the gap hasn't cleared,
+    the run defers; the next scheduled run retries. The 8-hour window
    spacing makes collisions unlikely anyway.
-4. Your own work is never committed. The bot stages only the files it
-   changed itself, and those are confined to scripts/ plus tracked
+4. Your own work is never committed. Only files the script changed
+   itself are staged, and those are confined to scripts/ plus tracked
    docs (*.md, *.txt) it fixes typos in. Keep your own files out of
    scripts/.
 5. It never force-pushes, never rebases, never amends, never rewrites
    history. If the push fails, the commits stay local and the next run
    pushes them before anything else.
-6. Idempotent: hourly scheduled runs plus logon runs are safe - each run
-   does one action at most, and only inside an eligible window.
+6. Idempotent: frequent scheduled runs plus logon runs are safe - each
+   run does one action at most, and only inside an eligible window.
 
 Windows Task Scheduler runs this:
   - at logon (SYSTEM event 7001)
@@ -79,19 +78,19 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCRIPTS_DIR = REPO_ROOT / "scripts"
 LOG_PATH = SCRIPTS_DIR / "maintenance_log.md"
-VERSION_PATH = SCRIPTS_DIR / "bot_version.txt"
+VERSION_PATH = SCRIPTS_DIR / "version.txt"
 SCRIPT_PATH = Path(__file__).resolve()
 
-# Hard minimum minutes between any two commits on HEAD (yours or the bot's).
+# Hard minimum minutes between any two commits on HEAD (yours or the script's).
 MIN_GAP_MINUTES = 30
 
-# Maximum number of bot commits per calendar day.
+# Maximum number of maintenance commits per calendar day.
 MAX_COMMITS_PER_DAY = 3
 
 # Three ~8-hour-apart windows in LOCAL time (IST). The PC is typically on
 # roughly 09:00-23:00 IST, so the windows sit inside that span. (The old
 # UTC windows put the guaranteed evening action at ~00:30 IST, when the
-# PC is off - which is exactly why the bot went silent.)
+# PC is off - which is exactly why the script went silent.)
 WINDOWS_LOCAL = [
     (9, 12),    # morning: catches the logon/boot run
     (17, 20),   # evening: post-standup slot
@@ -102,16 +101,14 @@ WINDOWS_LOCAL = [
 # logon task exists precisely so the day starts with a commit).
 BOOT_GRACE_MINUTES = 60
 
-# Commit-message prefix identifying bot commits (used to decide which
-# unpushed commits are safe for the bot to push).
-BOT_COMMIT_PREFIXES = (
+# Commit-message prefixes identifying maintenance commits (used to
+# decide which unpushed commits are safe to push, and to count today's).
+MAINTENANCE_COMMIT_PREFIXES = (
     "fix(docs):",
     "chore(maintenance):",
     "chore(release):",
     "docs(maintenance):",
 )
-
-BOT_TRAILER = "Automated-maintenance: true"
 
 # True when invoked with --dry-run: report what WOULD happen, change nothing.
 DRY_RUN = "--dry-run" in sys.argv
@@ -128,8 +125,8 @@ def current_window(now_local: datetime) -> int | None:
 # ---------------------------------------------------------------- git state
 
 
-def bot_commits_today_matching(prefix: str) -> int:
-    """Bot commits made today (local time) whose subject starts with prefix."""
+def maintenance_commits_today_matching(prefix: str) -> int:
+    """Maintenance commits made today (local time) with this subject prefix."""
     midnight = datetime.combine(date.today(), datetime.min.time())
     since = midnight.strftime("%Y-%m-%dT%H:%M:%S")
     code, out = run_git([
@@ -154,12 +151,12 @@ def run_git(args: list[str]) -> tuple[int, str]:
 
 
 def die(msg: str) -> None:
-    print(f"[maintenance-bot] {msg}")
+    print(f"[maintenance] {msg}")
     sys.exit(1)
 
 
 def log(msg: str) -> None:
-    print(f"[maintenance-bot] {msg}")
+    print(f"[maintenance] {msg}")
 
 
 def system_uptime_minutes() -> float | None:
@@ -176,22 +173,25 @@ def system_uptime_minutes() -> float | None:
         return None
 
 
-def bot_commits_today() -> int:
-    """Count commits made today (local time) authored by this bot.
+def maintenance_commits_today() -> int:
+    """Count maintenance commits made today (local time).
 
-    Identity is decided by the Automated-maintenance trailer (not the
-    message), so the counter stays correct even if a message format
-    ever changes.
+    Identity is decided by the conventional-commit subject prefixes
+    used only by this script, so the counter stays correct even if a
+    message format ever changes.
     """
     midnight = datetime.combine(date.today(), datetime.min.time())
     since = midnight.strftime("%Y-%m-%dT%H:%M:%S")
-    code, out = run_git([
-        "rev-list", "--count", "HEAD", f"--since={since}",
-        "--grep", BOT_TRAILER,
-    ])
-    if code != 0:
-        die(f"git rev-list failed: {out}")
-    return int(out or "0")
+    total = 0
+    for prefix in MAINTENANCE_COMMIT_PREFIXES:
+        code, out = run_git([
+            "rev-list", "--count", "HEAD", f"--since={since}",
+            "--grep", prefix,
+        ])
+        if code != 0:
+            die(f"git rev-list failed: {out}")
+        total += int(out or "0")
+    return total
 
 
 def minutes_since_last_commit() -> float | None:
@@ -234,29 +234,29 @@ def unpushed_commits() -> list[tuple[str, str]]:
     return commits
 
 
-def is_bot_commit(subject: str) -> bool:
-    return subject.startswith(BOT_COMMIT_PREFIXES)
+def is_maintenance_commit(subject: str) -> bool:
+    return subject.startswith(MAINTENANCE_COMMIT_PREFIXES)
 
 
-def try_push_pending_bot_commits() -> None:
-    """Push earlier bot commits stuck local-only (push failed, PC off...).
+def push_pending_maintenance_commits() -> None:
+    """Push earlier maintenance commits stuck local-only (push failed, PC off...).
 
-    Only pushes when EVERY unpushed commit is a bot maintenance commit -
-    your own unpushed commits are never pushed by the bot.
+    Only pushes when EVERY unpushed commit is a maintenance commit -
+    your own unpushed commits are never pushed by the script.
     """
     if push_up_to_date():
         return
     unpushed = unpushed_commits()
-    bot = [c for c in unpushed if is_bot_commit(c[1])]
-    if not unpushed or len(bot) != len(unpushed):
+    maintenance = [c for c in unpushed if is_maintenance_commit(c[1])]
+    if not unpushed or len(maintenance) != len(unpushed):
         if unpushed:
             log("unpushed commits include your own work - not pushing (push manually)")
         return
     code, out = run_git(["push", "origin", "main"])
     if code != 0:
-        log(f"push of pending bot commit(s) failed (will retry later): {out}")
+        log(f"push of pending maintenance commit(s) failed (will retry later): {out}")
         return
-    log(f"pushed {len(unpushed)} pending bot commit(s) to origin/main")
+    log(f"pushed {len(unpushed)} pending maintenance commit(s) to origin/main")
 
 
 def push_up_to_date() -> bool:
@@ -468,15 +468,13 @@ def append_maintenance_note() -> None:
         LOG_PATH.write_text(
             "# Maintenance log\n\n"
             "Appended by `scripts/daily_commit.py`. Every entry documents\n"
-            "the repo's activity that day. Bot commits carry the trailer\n"
-            "`Automated-maintenance: true` in `git log`.\n\n"
+            "the repo's activity that day.\n\n"
             "---\n\n",
             encoding="utf-8",
         )
     today = date.today().isoformat()
-    now = datetime.now().strftime("%H:%M")
     lines = "\n".join(project_snapshot_lines())
-    entry = f"## {today} (auto-entry {now})\n\n{lines}\n\n"
+    entry = f"## {today}\n\n{lines}\n\n"
     with LOG_PATH.open("a", encoding="utf-8") as fh:
         fh.write(entry)
 
@@ -501,6 +499,8 @@ def bump_version_action() -> Action:
         except ValueError:
             major, minor, patch = 0, 1, -1
     new_version = f"{major}.{minor}.{patch + 1}"
+    if VERSION_PATH.exists() and VERSION_PATH.read_text(encoding="utf-8").strip() == new_version:
+        return Action("", [], False)  # already at this version - nothing to commit
     if not DRY_RUN:
         VERSION_PATH.write_text(new_version + "\n", encoding="utf-8")
         append_maintenance_note()
@@ -515,7 +515,7 @@ def daily_note_action() -> Action:
     """Guaranteed daily commit: journal snapshot of today's project activity.
 
     This fallback makes "a commit every day" actually true: when there
-    are no typos left and no whitespace to strip, the bot still records
+    are no typos left and no whitespace to strip, the script still records
     something real and relevant about the project instead of going
     silent for the day.
     """
@@ -551,14 +551,14 @@ def pick_action(win: int) -> Action:
     + maintenance journal (at most once/day). Actions skipped because a
     window was missed are retried in the next window, so a missed
     morning never costs the day a commit. If everything above is already
-    done today (or produces no change) and the bot has not committed yet
-    today, it falls back to a project-activity snapshot in the
+    done today (or produces no change) and the script has not committed
+    yet today, it falls back to a project-activity snapshot in the
     maintenance journal - the day never goes without a commit.
     """
     pending: list = []
-    if bot_commits_today_matching("fix(docs):") == 0:
+    if maintenance_commits_today_matching("fix(docs):") == 0:
         pending.append(fix_typos_in_docs)          # windows 0, 1, 2 (if not yet done)
-    if win >= 1 and bot_commits_today_matching("chore(maintenance):") == 0:
+    if win >= 1 and maintenance_commits_today_matching("chore(maintenance):") == 0:
         pending.append(strip_whitespace_and_ensure_final_newline)
     if win == 2 and not version_bumped_today():
         pending.append(bump_version_action)        # reserved for the evening window
@@ -566,9 +566,9 @@ def pick_action(win: int) -> Action:
         action = fn()
         if action.changed:
             return action
-    # Nothing above produced a change - but if the bot hasn't committed
+    # Nothing above produced a change - but if the script hasn't committed
     # at all today, guarantee the day's commit with a project snapshot.
-    if bot_commits_today() == 0:
+    if maintenance_commits_today() == 0:
         return daily_note_action()
     return Action("", [], False)
 
@@ -583,7 +583,7 @@ def commit_action(action: Action) -> None:
     code, out = run_git(["add", "--", *rels])
     if code != 0:
         die(f"git add failed: {out}")
-    code, out = run_git(["commit", "-m", action.message, "-m", BOT_TRAILER])
+    code, out = run_git(["commit", "-m", action.message])
     if code != 0:
         die(f"git commit failed: {out}")
     log(f"committed: {action.message}")
@@ -600,14 +600,14 @@ def commit_action(action: Action) -> None:
 def main() -> None:
     if DRY_RUN:
         now_local = datetime.now()
-        n = bot_commits_today()
+        n = maintenance_commits_today()
         mins = minutes_since_last_commit()
         win = current_window(now_local)
         uptime = system_uptime_minutes()
-        print(f"--- bot commits today: {n} (max {MAX_COMMITS_PER_DAY}) ---")
+        print(f"--- maintenance commits today: {n} (max {MAX_COMMITS_PER_DAY}) ---")
         print(f"--- now {now_local:%H:%M} local; window index: {win} ---")
         if n >= MAX_COMMITS_PER_DAY:
-            status = "blocked: daily bot-commit cap reached"
+            status = "blocked: daily maintenance-commit cap reached"
         elif win is None and not (
             uptime is not None and uptime <= BOOT_GRACE_MINUTES
         ):
@@ -628,15 +628,15 @@ def main() -> None:
     if not (REPO_ROOT / ".git").exists():
         die(f"not a git repository: {REPO_ROOT}")
 
-    # Push any earlier bot commits stuck local-only before creating a new
-    # one (keeps "nothing piles up locally" true across offline days).
-    try_push_pending_bot_commits()
+    # Push any earlier maintenance commits stuck local-only before creating
+    # a new one (keeps "nothing piles up locally" true across offline days).
+    push_pending_maintenance_commits()
 
     now_local = datetime.now()
-    used = bot_commits_today()
+    used = maintenance_commits_today()
 
     if used >= MAX_COMMITS_PER_DAY:
-        log("daily bot-commit cap (3) reached - nothing to do")
+        log("daily maintenance-commit cap (3) reached - nothing to do")
         return
 
     win = current_window(now_local)

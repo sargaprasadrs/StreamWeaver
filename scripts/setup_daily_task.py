@@ -1,21 +1,20 @@
 #!/usr/bin/env python3
 """
-One-time setup for the StreamWeaver daily commit bot
-====================================================
+One-time setup for the StreamWeaver maintenance script
+=======================================================
 
 Registers two Windows scheduled tasks that run scripts\\daily_commit.py:
 
   1. "StreamWeaver Maintenance Commit (Logon)" - at logon (Event 7001), so
      the day's first commit happens shortly after you switch on your PC.
-  2. "StreamWeaver Maintenance Commit (15min)" - every 15 minutes, so the
-     bot lands commits inside its spaced ~8-hour windows without you ever
-     needing to restart; the bot itself is a no-op outside those windows,
-     beyond the daily cap (3/day), or within 30 minutes of the last
-     commit on HEAD.
+  2. "StreamWeaver Maintenance Commit (15min)" - every 15 minutes, so the      script lands commits inside its spaced ~8-hour windows without you
+      ever needing to restart; the script is a no-op outside those windows,
+      beyond the daily cap (3/day), or within 30 minutes of the last
+      commit on HEAD.
 
-The bot is idempotent (up to 3 small maintenance commits/day, touches only
-its own files), so frequent runs are safe. Re-running this setup script
-also removes the legacy "... (Hourly)" task from older versions.
+The script is idempotent (up to 3 small maintenance commits/day, touches
+only its own files), so frequent runs are safe. Re-running this setup
+script also removes the legacy "... (Hourly)" task from older versions.
 
 Run as:   python scripts\\setup_daily_task.py
 Re-runnable: it deletes and re-creates its own tasks; nothing else is touched.
@@ -28,7 +27,7 @@ import sys
 from pathlib import Path
 
 SCRIPTS_DIR = Path(__file__).resolve().parent
-BOT = SCRIPTS_DIR / "daily_commit.py"
+MAINTENANCE_SCRIPT = SCRIPTS_DIR / "daily_commit.py"
 TASK_PREFIX = "StreamWeaver Maintenance Commit"
 LEGACY_TASKS = ["StreamWeaver Daily Commit (Logon)", "StreamWeaver Daily Commit (Hourly)"]
 LOG_FILE = SCRIPTS_DIR / "scheduler_setup.log"
@@ -51,12 +50,12 @@ def python_exe() -> str:
 
 
 def task_xml(name: str, trigger: str) -> str:
-    """Build a Task Scheduler XML definition for the bot task."""
+    """Build a Task Scheduler XML definition for the maintenance task."""
     author = getpass.getuser()
     python_cmd = python_exe()
-    bot_cmd = str(BOT)
+    script_cmd = str(MAINTENANCE_SCRIPT)
     # Escape XML entities in paths
-    bot_cmd = bot_cmd.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    script_cmd = script_cmd.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
     python_cmd_x = python_cmd.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
     working_dir = str(SCRIPTS_DIR.parent).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
@@ -79,7 +78,7 @@ def task_xml(name: str, trigger: str) -> str:
     return f"""<?xml version="1.0" encoding="UTF-16"?>
 <Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
   <RegistrationInfo>
-    <Description>StreamWeaver automated maintenance commit (up to 3/day in spaced windows, pushes to origin/main).</Description>
+    <Description>StreamWeaver maintenance: journal notes and small tidy-ups (up to 3/day in spaced windows, pushes to origin/main).</Description>
     <Author>{author}</Author>
   </RegistrationInfo>
   <Triggers>{trigger_block}</Triggers>
@@ -105,7 +104,7 @@ def task_xml(name: str, trigger: str) -> str:
   <Actions Context="Author">
     <Exec>
       <Command>{python_cmd_x}</Command>
-      <Arguments>"{bot_cmd}"</Arguments>
+      <Arguments>"{script_cmd}"</Arguments>
       <WorkingDirectory>{working_dir}</WorkingDirectory>
     </Exec>
   </Actions>
@@ -141,8 +140,8 @@ def install(name: str, trigger: str, user_sid: str) -> None:
 
 
 def main() -> None:
-    if not BOT.exists():
-        print(f"[setup] ERROR: bot script not found: {BOT}")
+    if not MAINTENANCE_SCRIPT.exists():
+        print(f"[setup] ERROR: maintenance script not found: {MAINTENANCE_SCRIPT}")
         sys.exit(1)
 
     # Resolve current user's SID via PowerShell
@@ -167,7 +166,7 @@ def main() -> None:
     run(["schtasks", "/Query", "/FO", "LIST", "/TN", f"{TASK_PREFIX} (15min)"])
 
     LOG_FILE.write_text("setup completed", encoding="utf-8")
-    print("[setup] done. The bot now runs every 15 minutes + at logon - no")
+    print("[setup] done. The script now runs every 15 minutes + at logon - no")
     print("restarts needed. Preview a run any time with:")
     print("   python scripts/daily_commit.py --dry-run")
 
