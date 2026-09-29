@@ -2,3 +2,4 @@
 scheduled_task_*.xml
 scheduler_setup.log
 standup_log.md.bak
+__pycache__/
