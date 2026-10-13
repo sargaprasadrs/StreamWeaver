@@ -1,13 +1,10 @@
 const request = require('supertest');
 const expect = require('chai').expect;
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 
-process.env.UPLOAD_DIR = path.join(os.tmpdir(), `sw-test-${Date.now()}`);
-process.env.MAX_UPLOAD_BYTES = String(1024 * 1024);
-process.env.SAMPLE_ROW_LIMIT = '1000';
-process.env.MONGODB_URI = '';
+// Environment (UPLOAD_DIR, OUTPUT_DIR, limits) is configured in test/setup.js,
+// which mocha loads before any test module.
 
 const { createApp } = require('../src/server');
 const config = require('../src/config');
@@ -17,11 +14,13 @@ describe('uploads API', () => {
 
   before(() => {
     fs.mkdirSync(config.uploadDir, { recursive: true });
+    fs.mkdirSync(config.outputDir, { recursive: true });
     app = createApp();
   });
 
   after(() => {
     fs.rmSync(config.uploadDir, { recursive: true, force: true });
+    fs.rmSync(config.outputDir, { recursive: true, force: true });
   });
 
   describe('POST /api/uploads', () => {
@@ -175,6 +174,59 @@ describe('uploads API', () => {
     it('returns 404 when running a missing upload', async () => {
       const res = await request(app).post('/api/uploads/does-not-exist/run');
       expect(res.status).to.equal(404);
+    });
+  });
+
+  describe('transform + ingestion + errors', () => {
+    let uploadId;
+
+    before(async () => {
+      const res = await request(app)
+        .post('/api/uploads')
+        .attach('file', Buffer.from('name,age\nann,30\nbob,notanumber\n'), 'people.csv');
+      uploadId = res.body.uploadId;
+      await request(app)
+        .put(`/api/uploads/${uploadId}/mapping`)
+        .send({
+          mapping: {
+            name: { destField: 'person', type: 'string', required: true },
+            age: { destField: 'years', type: 'number', required: true },
+          },
+        });
+    });
+
+    it('exposes job status without the temp path', async () => {
+      const res = await request(app).get(`/api/uploads/${uploadId}`);
+      expect(res.status).to.equal(200);
+      expect(res.body.uploadId).to.equal(uploadId);
+      expect(res.body).to.not.have.property('tempPath');
+    });
+
+    it('runs a sandboxed transform and persists records in batches', async () => {
+      const res = await request(app)
+        .post(`/api/uploads/${uploadId}/run`)
+        .send({ transform: { code: 'return value.toUpperCase()', field: 'person' } });
+      expect(res.status).to.equal(200);
+      expect(res.body.status).to.equal('completed');
+      expect(res.body.rowsProcessed).to.equal(1);
+      expect(res.body.rowsFailed).to.equal(1);
+      expect(res.body).to.have.property('insertedCount', 1);
+      expect(res.body.sandboxEngine).to.be.a('string');
+    });
+
+    it('lists failed rows with pagination for the error UI', async () => {
+      const res = await request(app).get(`/api/jobs/${uploadId}/errors`);
+      expect(res.status).to.equal(200);
+      expect(res.body.total).to.equal(1);
+      expect(res.body.rows[0]).to.have.property('reason');
+      expect(res.body.rows[0].reason).to.match(/years/);
+    });
+
+    it('rejects a transform that is saved without code', async () => {
+      const res = await request(app)
+        .put(`/api/uploads/${uploadId}/mapping`)
+        .send({ mapping: { name: { destField: 'person' } }, transform: { field: 'person' } });
+      expect(res.status).to.equal(422);
     });
   });
 });

@@ -82,6 +82,14 @@ function createUploadController() {
         originalName = filename;
         filePath = path.join(config.uploadDir, safeTempName(uploadId, filename));
 
+        try {
+          fs.mkdirSync(path.dirname(filePath), { recursive: true });
+        } catch (err) {
+          streamError = `Failed to prepare upload directory: ${err.message}`;
+          fileStream.resume();
+          return;
+        }
+
         out = fs.createWriteStream(filePath, { flags: 'wx' });
 
         // Manual pipe with backpressure: pause the incoming stream whenever

@@ -56,7 +56,7 @@ function applyMappingToRow(row, columns, mapping) {
  * MappingBoard: assign source columns to destination fields with type +
  * required flags, validate, preview the first 10 rows, then save & run.
  */
-export default function MappingBoard({ uploadId, columns, rows, onRunComplete }) {
+export default function MappingBoard({ uploadId, columns, rows, transform, onRunStart, onRunFinish }) {
   const [mapping, setMapping] = useState({});
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -137,7 +137,7 @@ export default function MappingBoard({ uploadId, columns, rows, onRunComplete })
     }
     setSaving(true);
     try {
-      await saveMapping(uploadId, activeMapping);
+      await saveMapping(uploadId, activeMapping, transform);
       setSavedMapping(activeMapping);
       setDirty(false);
       setMessage({ kind: 'ok', text: 'Mapping saved.' });
@@ -158,7 +158,7 @@ export default function MappingBoard({ uploadId, columns, rows, onRunComplete })
       const ok = window.confirm('You have unsaved mapping changes. Save and run now?');
       if (ok) {
         try {
-          await saveMapping(uploadId, activeMapping);
+          await saveMapping(uploadId, activeMapping, transform);
           setSavedMapping(activeMapping);
           setDirty(false);
         } catch (err) {
@@ -174,15 +174,17 @@ export default function MappingBoard({ uploadId, columns, rows, onRunComplete })
       return;
     }
     setRunning(true);
+    if (onRunStart) onRunStart(uploadId);
     try {
-      const result = await runPipeline(uploadId);
+      const result = await runPipeline(uploadId, transform);
       setMessage({
         kind: 'ok',
         text: `Completed: ${result.rowsProcessed} rows ok, ${result.rowsFailed} failed, ${result.rowsPerSec} rows/sec, peak RSS ${result.peakRssMB} MB`,
       });
-      if (onRunComplete) onRunComplete(result);
+      if (onRunFinish) onRunFinish(result);
     } catch (err) {
       setErrors([err.message || 'Pipeline run failed']);
+      if (onRunFinish) onRunFinish(null, err);
     } finally {
       setRunning(false);
     }

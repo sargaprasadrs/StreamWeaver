@@ -24,13 +24,15 @@ export async function fetchSample(uploadId, signal) {
 }
 
 /**
- * Persist the column mapping for an upload.
+ * Persist the column mapping (and optional transform) for an upload.
  */
-export async function saveMapping(uploadId, mapping) {
+export async function saveMapping(uploadId, mapping, transform) {
+  const body = { mapping };
+  if (transform !== undefined) body.transform = transform;
   const res = await fetch(`${API_BASE}/uploads/${encodeURIComponent(uploadId)}/mapping`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ mapping }),
+    body: JSON.stringify(body),
   });
   if (!res.ok) {
     let msg = `Mapping save failed (${res.status})`;
@@ -53,11 +55,11 @@ export async function saveMapping(uploadId, mapping) {
 /**
  * Execute the streaming ETL pipeline for an upload.
  */
-export async function runPipeline(uploadId) {
+export async function runPipeline(uploadId, transform) {
   const res = await fetch(`${API_BASE}/uploads/${encodeURIComponent(uploadId)}/run`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({}),
+    body: JSON.stringify(transform ? { transform } : {}),
   });
   if (!res.ok) {
     let msg = `Pipeline run failed (${res.status})`;
@@ -71,6 +73,26 @@ export async function runPipeline(uploadId) {
     err.status = res.status;
     throw err;
   }
+  return res.json();
+}
+
+/**
+ * Fetch a job's current status/metrics.
+ */
+export async function getJob(uploadId) {
+  const res = await fetch(`${API_BASE}/uploads/${encodeURIComponent(uploadId)}`);
+  if (!res.ok) throw new Error(`Job lookup failed (${res.status})`);
+  return res.json();
+}
+
+/**
+ * Fetch a page of failed rows for an upload.
+ */
+export async function fetchErrors(uploadId, page = 1, pageSize = 50) {
+  const res = await fetch(
+    `${API_BASE}/uploads/${encodeURIComponent(uploadId)}/errors?page=${page}&pageSize=${pageSize}`
+  );
+  if (!res.ok) throw new Error(`Failed rows request failed (${res.status})`);
   return res.json();
 }
 

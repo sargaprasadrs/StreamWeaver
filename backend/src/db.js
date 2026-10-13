@@ -16,11 +16,17 @@ async function initDb() {
   const client = new MongoClient(config.mongoUri, { serverSelectionTimeoutMS: 5000 });
   await client.connect();
   dbRef = client.db(config.mongoDb);
+  await ensureIndexes(dbRef);
   return dbRef;
 }
 
 async function db() {
   return dbRef;
+}
+
+/** True when MongoDB is configured and connected; false in file-only mode. */
+function hasDb() {
+  return Boolean(dbRef);
 }
 
 async function closeDb() {
@@ -35,6 +41,7 @@ async function ensureIndexes(dbh) {
   if (!dbh) return;
   await dbh.collection('uploads').createIndex({ createdAt: 1 });
   await dbh.collection('failed_rows').createIndex({ uploadId: 1, rowIndex: 1 });
+  await dbh.collection('records').createIndex({ uploadId: 1, row: 1 });
 }
 
 /**
@@ -87,4 +94,4 @@ async function updateJob(id, updates) {
   await fs.writeFile(file, JSON.stringify({ ...job, ...updates }, null, 2));
 }
 
-module.exports = { initDb, db, closeDb, ensureIndexes, insertJob, findJob, updateJob };
+module.exports = { initDb, db, hasDb, closeDb, ensureIndexes, insertJob, findJob, updateJob };

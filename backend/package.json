@@ -8,10 +8,11 @@
     "node": ">=20"
   },
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "node --watch src/server.js",
+    "start": "node --max-old-space-size=96 --max-semi-space-size=4 src/server.js",
+    "dev": "node --max-old-space-size=96 --max-semi-space-size=4 --watch src/server.js",
     "test": "mocha \"test/**/*.test.js\" --timeout 10000",
-    "audit:memory": "node scripts/generateCsv.js --rows 100000 --out tmp/audit-large.csv && node scripts/memoryAudit.js --file tmp/audit-large.csv"
+    "audit:memory": "node scripts/generateCsv.js --rows 100000 --out tmp/audit-large.csv && node --expose-gc --max-old-space-size=96 --max-semi-space-size=4 scripts/memoryAudit.js --file tmp/audit-large.csv --gc",
+    "audit:memory:live": "node scripts/generateCsv.js --rows 10000000 --out tmp/audit-live.csv && node --expose-gc --max-old-space-size=96 --max-semi-space-size=4 scripts/memoryAudit.js --file tmp/audit-live.csv --gc"
   },
   "dependencies": {
     "busboy": "^1.6.0",

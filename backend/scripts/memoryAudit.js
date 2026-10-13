@@ -15,10 +15,11 @@ const config = require('../src/config');
  */
 
 function parseArgs(argv) {
-  const args = { file: 'tmp/audit.csv', intervalMs: 250 };
+  const args = { file: 'tmp/audit.csv', intervalMs: 250, gc: false };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--file') args.file = argv[i + 1] || args.file;
     if (argv[i] === '--interval') args.intervalMs = Math.max(50, parseInt(argv[i + 1], 10) || args.intervalMs);
+    if (argv[i] === '--gc') args.gc = true;
   }
   return args;
 }
@@ -33,7 +34,7 @@ const SAMPLE_MAPPING = {
 };
 
 async function main() {
-  const { file, intervalMs } = parseArgs(process.argv.slice(2));
+  const { file, intervalMs, gc } = parseArgs(process.argv.slice(2));
   const filePath = path.resolve(file);
 
   if (!fs.existsSync(filePath)) {
@@ -42,13 +43,21 @@ async function main() {
     process.exit(1);
   }
 
+  if (gc && typeof global.gc !== 'function') {
+    console.error('--gc requires the V8 flag:  node --expose-gc scripts/memoryAudit.js --file <file> --gc');
+    process.exit(1);
+  }
+
   const sizeGB = fs.statSync(filePath).size / 1024 / 1024 / 1024;
-  console.log(`Audit target: ${filePath} (${sizeGB.toFixed(2)} GB)`);
+  console.log(`Audit target: ${filePath} (${sizeGB.toFixed(2)} GB)${gc ? ' [gc-mode: live memory]' : ''}`);
 
   // Lazy-require so the audit measures pipeline memory only.
   const { runPipeline } = require('../src/pipeline');
 
   const sampler = setInterval(() => {
+    // In gc-mode the sampler forces a full collection first so the sampled
+    // RSS reflects live (retained) memory rather than V8's lazy heap growth.
+    if (gc && global.gc) global.gc();
     const rss = process.memoryUsage().rss / 1024 / 1024;
     if (rss > (global.__auditPeakRss || 0)) global.__auditPeakRss = rss;
     process.stdout.write(`\rsample: rss=${rss.toFixed(1)} MB   `);
@@ -75,6 +84,7 @@ async function main() {
     file: filePath,
     fileGB: Math.round(sizeGB * 1000) / 1000,
     intervalMs,
+    gcMode: gc,
     rowsProcessed: result.rowsProcessed,
     rowsFailed: result.rowsFailed,
     elapsedMs: result.elapsedMs,
